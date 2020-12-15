@@ -180,6 +180,7 @@ editorView.session.setUseWrapMode(true);
 <script type='text/javascript'>
 var json = null;
 
+// Modify the benchmark code here for custom sampling functionality
 function benchmark() {
 	document.getElementById('solveBtn').disabled = true;
 	document.getElementById('runBenchmarkBtn').disabled = true;
@@ -216,6 +217,8 @@ function benchmark() {
 		//}
 	}
 	html += '</table>';
+
+	html += '<hr>To customize the benchmark, edit the <b>benchmark()</b> function on line 184.<br><a href="view-source:https://simewu.github.io/SAT-solver" target="_blank">Click here to go to the code</a>'
 	document.getElementById('outputDiv').innerHTML = html;
 	document.getElementById('solveBtn').disabled = false;
 	document.getElementById('runBenchmarkBtn').disabled = false;
