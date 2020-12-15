@@ -25,8 +25,18 @@
 		color: #FFF;
 	}
 
+	.bluebtn::disabled {
+		background-color: #5F6387;
+		color: #FFF;
+	}
+
 	.yellowbtn {
 		background-color: #FCED8B;
+		color: #000;
+	}
+
+	.yellowbtn::disabled {
+		background-color: #B8AC7B;
 		color: #000;
 	}
 
@@ -66,7 +76,7 @@
 <body>
 	<div class='container'>
 		<h1 class='yellowtxt'>Simeon's SAT Solver</h1>
-		<p>This app will solve a sat instance. Each line is a clause, where clauses are separated by AND. Each number is a literal, which are separated by OR. Negative numbers represent NOT.</p>
+		<p>This app will solve a boolean satisfiability (SAT) instance. Each line is a clause, where clauses are separated by AND. Each number is a literal, which are separated by OR. Negative numbers represent NOT.</p>
 		<br>
 		<br>
 		<table style='width: 100%'>
@@ -81,8 +91,8 @@
 			</tr>
 		</table>
 		<br>
-		<button class='bluebtn' onclick='solve()'>Solve SAT Instance</button>
-		<button class='yellowbtn' style='margin-right: 10px' onclick='benchmark()'>Run Benchmark</button>
+		<button class='bluebtn' id='solveBtn' onclick='solve()'>Solve SAT Instance</button>
+		<button class='yellowbtn' id='runBenchmarkBtn' style='margin-right: 10px' onclick='benchmark()'>Run Benchmark</button>
 		<br>
 		<br>
 		<br>
@@ -109,48 +119,61 @@ edited();
 
 
 function benchmark() {
+	document.getElementById('solveBtn').disabled = true;
+	document.getElementById('runBenchmarkBtn').disabled = true;
+
+	console.log('# Clauses', '# Literals', 'Time (ms)');
 	var html = '';
 	html += '<table>';
 	html += '<tr>';
 	html += '<td># Clauses</td>';
-	html += '<td># Variables</td>';
+	html += '<td># Literals</td>';
 	html += '<td>Time (ms)</td>';
 	html += '</tr>';
 
-	for(var i = 100; i <= 10000; i += 100) {
+	for(var i = 1; i <= 1000; i *= 2) {
+	//for(var j = 1; j <= 10000; j *= 2) {
 
-		numVars = 100;
-		numClauses = i;
-
+		numLiterals = i;
+		numClauses = 512;
 
 		var avgTime = 0, samples = 10;
-		for(var j = 0; j < samples; j++) {
-			var clauses = genClauses(numVars, numClauses);
+		for(var k = 0; k < samples; k++) {
+			var clauses = genClauses(numLiterals, numClauses);
 
 			var t1 = performance.now();
-			solveSAT(clauses);
+			try {
+				solveSAT(clauses);
+			} catch(e) {}
+			
 			var t2 = performance.now();
 			avgTime += t2 - t1;
 		}
 		avgTime /= samples;
 
+		console.log(numClauses, numLiterals, avgTime);
+
 		html += '<tr>';
 		html += '<td>' + numClauses + '</td>';
-		html += '<td>' + numVars + '</td>';
+		html += '<td>' + numLiterals + '</td>';
 		html += '<td>' + avgTime + '</td>';
 		html += '</tr>';
+	//}
 	}
 
 	html += '</table>';
 	document.getElementById('outputDiv').innerHTML = html;
+
+	document.getElementById('solveBtn').disabled = false;
+	document.getElementById('runBenchmarkBtn').disabled = false;
 }
 
-function genClauses(numVars, numClauses) {
+function genClauses(numLiterals, numClauses) {
 	var clauses = [];
 	for(var i = 0; i < numClauses; i++) {
 		var clause = [];
-		for(var j = 0; j < numVars; j++) {
-			literal = Math.floor(1 + Math.random() * numVars)
+		for(var j = 0; j < numLiterals; j++) {
+			literal = Math.floor(1 + Math.random() * numLiterals)
 			if(Math.random() < 0.5) literal = -literal;
 			clause.push(literal);
 		}
@@ -160,6 +183,8 @@ function genClauses(numVars, numClauses) {
 }
 
 function solve() {
+	document.getElementById('solveBtn').disabled = true;
+	document.getElementById('runBenchmarkBtn').disabled = true;
 	try {
 		setJSON();
 		if(json != null) {
@@ -185,6 +210,8 @@ function solve() {
 	} catch(e) {
 		alert('An error still exists in the editor.\n' + e)
 	}
+	document.getElementById('solveBtn').disabled = false;
+	document.getElementById('runBenchmarkBtn').disabled = false;
 }
 
 function edited() {
