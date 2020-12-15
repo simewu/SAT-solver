@@ -13,21 +13,22 @@ The box on the left is the editor. The box on the right is the view of the insta
 
 ## Presets
 The following instances are preloaded into the application.
-```
-Default [SAT] (Variables = 5, Clauses = 6)
-Simple Test [SAT] (Variables = 3, Clauses = 2)
-Functioning Sudoku [SAT] (Variables = 729, 8850)
-Who Owns the Zebra Puzzle [SAT] (Variables = 155, Clauses = 1135)
-Pigeon hole problem [UNSAT] (Variables = 42, Clauses = 133)
-Parity problem [SAT] (Variables = 64, Clauses = 254)
-Factorize 139*227=31553, solution in variables 1-8 and 9-16 (Variables = 83, Clauses = 1468)
-Factorize 2711*2153=5836783, solution in variables 1-12 and 13-24 (Variables = 191, Clauses = 4679)
-Artifical instances from generator [UNSAT] (Variables = 100, Clauses = 160)
-Artifical instances from generator [SAT] (Variables = 50, Clauses = 80)
-Nemesis formula [UNSAT] (Variables = 1317, Clauses = 3668)
-Instance from generator 20 [UNSAT] (Variables = 60, Clauses = 160)
-Instance from generator 21 [UNSAT] (Variables = 63, Clauses = 168)
-Instance from generator 22 [UNSAT] (Variables = 66, Clauses = 176)
-```
+
+- Default [SAT] (Variables = 5, Clauses = 6)
+- Simple Test [SAT] (Variables = 3, Clauses = 2)
+- Functioning Sudoku [SAT] (Variables = 729, 8850)
+- Who Owns the Zebra Puzzle [SAT] (Variables = 155, Clauses = 1135)
+- Pigeon hole problem [UNSAT] (Variables = 42, Clauses = 133)
+- Parity problem [SAT] (Variables = 64, Clauses = 254)
+- Factorize 139*227=31553, solution in variables 1-8 and 9-16 (Variables = 83, Clauses = 1468)
+- Factorize 2711*2153=5836783, solution in variables 1-12 and 13-24 (Variables = 191, Clauses = 4679)
+- Artifical instances from generator [UNSAT] (Variables = 100, Clauses = 160)
+- Artifical instances from generator [SAT] (Variables = 50, Clauses = 80)
+- Nemesis formula [UNSAT] (Variables = 1317, Clauses = 3668)
+- Instance from generator 20 [UNSAT] (Variables = 60, Clauses = 160)
+- Instance from generator 21 [UNSAT] (Variables = 63, Clauses = 168)
+- Instance from generator 22 [UNSAT] (Variables = 66, Clauses = 176)
+
+---
 
 The application is hosted at https://simewu.github.io/SAT-solver
