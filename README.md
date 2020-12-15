@@ -1,4 +1,4 @@
-# SAT-solver
+# Boolean Satisfiability Solver
  A web-based boolean satisfiability solver.
  Given a SAT instance, the program will determine whether or not it is satisfiable (i.e. has some variable assignment that evaluates the Boolean formula to true), if it is, it will provide the variable assignment that satisfies the formula.
  
