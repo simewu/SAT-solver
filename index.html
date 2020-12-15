@@ -323,7 +323,7 @@ function setJSON() {
 	for(var i = 0; i < rawLines.length; i++) {
 		rawLines[i] = rawLines[i].replaceAll(/\/\/.*/g, '') // Remove line comments
 		rawLines[i] = rawLines[i].trim().replaceAll(/\s+/g, ', ');
-		if(rawLines[i] != '') lines.push(rawLines[i]);
+		lines.push(rawLines[i]);
 	}
 	var formatted = '[' + lines.join('],\n[') + ']';
 	formatted = '[' + formatted + ']';
