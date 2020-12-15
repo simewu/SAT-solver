@@ -145,7 +145,7 @@
 -1 2</div>
 				</td>
 				<td>
-					<div id='editorView'></div>
+					<div id='editorView' onkeyup='updateEditorCursor()' onclick='updateEditorCursor()'></div>
 				</td>
 			</tr>
 		</table>
@@ -292,6 +292,7 @@ function edited() {
 }
 
 function updateEditorViewCursor() {
+	editorView.clearSelection();
 	var line = editor.selection.getLineRange().start.row;
 	editorView.scrollToLine(line, true, true, function() {})
 	editorView.selection.moveCursorToPosition({
@@ -299,6 +300,17 @@ function updateEditorViewCursor() {
 		column: 0
 	});
 	//editorView.selection.selectLine();
+}
+
+function updateEditorCursor() {
+	editor.clearSelection();
+	var line = editorView.selection.getLineRange().start.row;
+	editor.scrollToLine(line, true, true, function() {})
+	editor.selection.moveCursorToPosition({
+		row: line,
+		column: 0
+	});
+	//editor.selection.selectLine();
 }
 
 function setJSON() {
