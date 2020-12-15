@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang='en'>
+<title>SAT Solver</title>
+<style>
+	body {
+		font-family: 'Verdana';
+		background-color: #272822;
+		padding: 20px;
+	}
+
+	p {
+		margin: 0
+	}
+
+	.bluebtn, .yellowbtn {
+		float: right;
+		width: 150px;
+		height: 30px;
+		border: none;
+		border-radius: 3px;
+	}
+
+	.bluebtn {
+		background-color: #5F63EB;
+		color: #FFF;
+	}
+
+	.yellowbtn {
+		background-color: #FCED8B;
+		color: #000;
+	}
+
+	.yellowtxt {
+		color: #FCED8B;
+	}
+
+	#editor {
+		font-size: 1.5em;
+		width: 100%;
+		height: 300px;
+	}
+
+	#editorview {
+		font-size: 1em;
+		width: 100%;
+		height: 300px;
+	}
+
+	.container {
+		border-radius: 10px;
+		margin: 0 auto;
+		padding: 30px;
+		background-color: #2F3129;
+		color: #FFF;
+		width: 800px;
+	}
+
+	#outputDiv {
+		background-color: #272822;
+		color: #FFF;
+		max-height: 70%;
+		padding: 20px;
+		overflow-y: auto;
+	}
+</style>
+<body>
+	<div class='container'>
+		<h1 class='yellowtxt'>Simeon's SAT Solver</h1>
+		<p>This app will solve a sat instance. Each line is a clause, where clauses are separated by AND. Each number is a literal, which are separated by OR. Negative numbers represent NOT.</p>
+		<br>
+		<br>
+		<table style='width: 100%'>
+			<tr>
+			<td><div id='editor' onkeyup='edited()' onchange='edited()'>1 2 3 4 5
+-1 -2 -3 -4 -5
+1 -2
+3 -4 5
+5
+-1 2</div></td>
+			<td><div id='editorview'></div></td>
+			</tr>
+		</table>
+		<br>
+		<button class='bluebtn' onclick='solve()'>Solve SAT Instance</button>
+		<button class='yellowbtn' style='margin-right: 10px' onclick='benchmark()'>Run Benchmark</button>
+		<br>
+		<br>
+		<br>
+		<div id='outputDiv'>
+		</div>
+		
+	</div>
+</body>
+<script src='libs/ace.js' type='text/javascript' charset='utf-8'></script>
+<script>
+	var editor = ace.edit('editor');
+	editor.setTheme('ace/theme/monokai');
+	editor.session.setMode('ace/mode/json5');
+	editor.session.setUseWrapMode(true);
+
+	var editorview = ace.edit('editorview');
+	editorview.setReadOnly(true);
+	editorview.setTheme('ace/theme/monokai');
+	editorview.session.setUseWrapMode(true);
+</script>
+<script type = 'text/javascript'>
+var json = null;
+edited();
+
+
+function benchmark() {
+	var html = '';
+	html += '<table>';
+	html += '<tr>';
+	html += '<td># Clauses</td>';
+	html += '<td># Variables</td>';
+	html += '<td>Time (ms)</td>';
+	html += '</tr>';
+
+	for(var i = 100; i <= 10000; i += 100) {
+
+		numVars = 100;
+		numClauses = i;
+
+
+		var avgTime = 0, samples = 10;
+		for(var j = 0; j < samples; j++) {
+			var clauses = genClauses(numVars, numClauses);
+
+			var t1 = performance.now();
+			solveSAT(clauses);
+			var t2 = performance.now();
+			avgTime += t2 - t1;
+		}
+		avgTime /= samples;
+
+		html += '<tr>';
+		html += '<td>' + numClauses + '</td>';
+		html += '<td>' + numVars + '</td>';
+		html += '<td>' + avgTime + '</td>';
+		html += '</tr>';
+	}
+
+	html += '</table>';
+	document.getElementById('outputDiv').innerHTML = html;
+}
+
+function genClauses(numVars, numClauses) {
+	var clauses = [];
+	for(var i = 0; i < numClauses; i++) {
+		var clause = [];
+		for(var j = 0; j < numVars; j++) {
+			literal = Math.floor(1 + Math.random() * numVars)
+			if(Math.random() < 0.5) literal = -literal;
+			clause.push(literal);
+		}
+		clauses.push(clause);
+	}
+	return clauses;
+}
+
+function solve() {
+	try {
+		setJSON();
+		if(json != null) {
+			result = solveSAT(json);
+			var html = '';
+			if(result[0] == true) {
+				html += 'The instance is satisfiable!';
+			} else {
+				html += 'The instance is unsatisfiable.';
+			}
+			html += '<hr>';
+			if(typeof result[1] == 'string') {
+				html += result[1];
+			} else {
+				var variables = result[1];
+				for(var i in variables) {
+					if(variables[i] == null) continue;
+					html += `x${i} = ${variables[i].sign ? '1' : '0'}<br>`
+				}
+			}
+			document.getElementById('outputDiv').innerHTML = html;
+		} else throw('')
+	} catch(e) {
+		alert('An error still exists in the editor.\n' + e)
+	}
+}
+
+function edited() {
+	setJSON();
+	if(json != null) {
+		var formatted = '';
+		for(var i in json) {
+			if(i != 0) formatted += '\n∧ '
+			formatted += '('
+			for(var j in json[i]) {
+				var num = json[i][j];
+				if(j != 0) formatted += ' ∨ '
+				if(num < 0) formatted += '¬'
+				formatted += 'x' + Math.abs(num)
+			}
+			formatted += ')';
+		}
+		editorview.setValue(formatted);
+		editorview.clearSelection();
+	}
+}
+
+function setJSON() {
+	var text = editor.getValue().trim().replaceAll(/\n+/g, '\n')
+	var rawLines = text.split('\n');
+	var lines = [];
+	for(var i = 0; i < rawLines.length; i++) {
+
+		rawLines[i] = rawLines[i].replaceAll(/\/\/.*/g, '') // Remove line comments
+		rawLines[i] = rawLines[i].trim().replaceAll(/\s+/g, ', ');
+		if(rawLines[i] != '') lines.push(rawLines[i]);
+	}
+	var formatted = '[' + lines.join('],\n[') + ']';
+	formatted = '[' + formatted + ']';
+
+	try {
+		json = JSON.parse(formatted);
+		editor.getSession().setAnnotations([]);
+	} catch(e) {
+		if(e instanceof SyntaxError) {
+			var match = e.message.match(/(.+) at position ([0-9]+)/);
+			if(match && match.length == 3) {
+				var message = match[1].split(/( .)? in JSON/)[0];
+				var before = formatted.substring(0, Number(match[2]));
+				var line = before.split('\n').length - 1;
+
+				editor.getSession().setAnnotations([{
+					row: line,
+					column: 0,
+					text: message,
+					type: "error" // also "warning" and "information"
+				}]);
+			} else {
+				editor.getSession().setAnnotations([]);
+			}
+		}
+		json = null;
+	}
+}
+
+function solveSAT(clauses) {
+	var size = recursiveAbsMax(clauses); // Number of variables
+	var state = new State();
+	for (var i = 0; i < size; i++) {
+		state.variables.push(new Variable());
+	}
+	for (var i = 0; i < clauses.length; i++) {
+		addClause(state, clauses[i]);
+	}
+
+	if(state.empty) return [false, 'Empty clause']; // Empty clause, UNSAT
+
+	for (var i = 1; i < state.variables.length; i++) { // Find and unit propagate unit clauses
+		var v = state.variables[i];
+		if(v.unit) {
+			var literal = (v.unitSign ? -i : i);
+			if(!unitPropagate(state, literal, null)) return [false, state.variables];
+		}
+	}
+
+	for (state.depth = 1; true; state.depth++) { // Main loop
+		var literal = pickLiteral(state);
+		if(literal == 0) return [true, state.variables]; // All variables set, satisfiable
+		if(!unitPropagate(state, literal, null)) return [false, state.variables]; // UNSAT
+	}
+
+	return [true, state.variables];
+}
+
+function recursiveAbsMax(arr){
+	if(typeof arr == 'number') return arr;
+	return Math.max(...arr.map(e => Array.isArray(e) ? recursiveAbsMax(e) : Math.abs(e)));
+}
+
+
+function Variable() {
+	this.set = false;
+	this.sign = false;
+	this.mark = false;
+	this.unit = false;
+	this.unitSign = false;
+	this.depth = 0;
+	this.reason = null;
+	this.twowatched = [
+		[], []
+	];
+
+	this.setUnit = function (sign) {
+		this.unit = true;
+		this.unitSign = sign;
+	}
+}
+
+function State() {
+	this.empty = false;
+	this.variables = [null];
+	this.clauses = [];
+	this.trail = [];
+	this.depth = 0;
+	this.tlevel = 0;
+}
+
+function getIndex(literal) {
+	return (literal < 0 ? -literal : literal);
+}
+
+function getSign(literal) {
+	return (literal < 0);
+}
+
+function getVariable(state, literal) {
+	var index = getIndex(literal);
+	return state.variables[index];
+}
+
+function isFalse(state, literal) {
+	var v = getVariable(state, literal);
+	return (v.set && v.sign != getSign(literal));
+}
+
+function getMark(state, literal) {
+	var v = getVariable(state, literal);
+	return v.mark;
+}
+
+function watchLiteral(state, literal, clause) {
+	var v = getVariable(state, literal);
+	var watch = v.twowatched[Number(getSign(literal))];
+	watch.push(clause);
+}
+
+function setLiteral(state, literal, reason) {
+	var v = getVariable(state, literal);
+	v.sign = getSign(literal);
+	v.set = true;
+	v.depth = state.depth;
+	v.reason = reason;
+	state.trail.push(literal);
+}
+
+// Add new clause
+function addClause(state, clause) {
+	if(clause.length == 0) { // No literals
+		state.empty = true;
+		return;
+	} else if(clause.length == 1) {
+		var v = getVariable(state, clause[0]);
+		var sign = getSign(clause[0]);
+		if(v.unit) {
+			if(sign != v.unitSign)
+				state.empty = true;
+			return;
+		}
+		v.setUnit(sign);
+		return;
+	} else {
+		watchLiteral(state, clause[0], clause);
+		watchLiteral(state, clause[1], clause);
+	}
+}
+
+// Select random literal
+function pickLiteral(state) {
+	var M = 1, N = state.variables.length - 1;
+	var i = Math.floor(M + (1 + N - M) * Math.random()), i0 = i;
+
+	while(state.variables[i].set) {
+		i++;
+		if(i >= state.variables.length) {
+			i = 1;
+		} if(i == i0) {
+			return 0;
+		}
+	}
+
+	var literal = (Math.random() < 0.5 ? -i : i);
+	return literal;
+}
+
+// Unit propagation.
+function unitPropagate(state, literal, reason) {
+	var cursor, next;
+	var restart;
+
+	do {
+		cursor = state.trail.length;
+		next = cursor + 1;
+		setLiteral(state, literal, reason);
+
+		restart = false;
+		while(cursor < next) {
+			literal = state.trail[cursor];
+			cursor++;
+			literal = -literal;
+			var v = getVariable(state, literal);
+			var watch = v.twowatched[Number(getSign(literal))];
+			for (var i = 0; i < watch.length; i++) {
+				var clause = watch[i];
+				var watchIndex = Number(clause[0] == literal);
+				var literalToWatch = clause[watchIndex];
+				var watchSign = getSign(literalToWatch);
+				var w = getVariable(state, literalToWatch);
+				if(w.set && w.sign == watchSign) continue; // Clause is true, already done
+
+				// Search for a true literal in clause
+				var j;
+				for (j = 2; j < clause.length && isFalse(state, clause[j]); j++);
+
+				if(j >= clause.length) {
+					if(!w.set) { // All other literals a false, use the other watch
+						if(watchIndex != 0) { // Implied set
+							clause[0] = literalToWatch;
+							clause[1] = literal;
+						}
+						setLiteral(state, literalToWatch, clause);
+						next++;
+						continue;
+					}
+
+					// All literals in clause are false
+					reason = satBacktrack(state, clause);
+					if(reason == null) return false; // conflict
+					literal = reason[0];
+					restart = true;
+					break;
+				}
+
+				// Watch the other literal
+				var new_lit = clause[j];
+				clause[Number(!watchIndex)] = new_lit;
+				clause[j] = literal;
+				watchLiteral(state, new_lit, clause);
+				if(i == watch.length - 1) {
+					watch.pop();
+				} else {
+					watch[i] = watch.pop();
+					i--;
+				}
+			}
+
+			if(restart) break;
+		}
+	} while(restart);
+
+	return true;
+}
+
+ // Backtracking and no-good learning
+function satBacktrack(state, reason) {
+	var conflicts = [];
+
+	if(state.depth == 0) return null; // No work to do
+
+	var count = 0;
+	for (var i = 0; i < reason.length; i++) { // Mark literals in reason
+		var v = getVariable(state, reason[i]);
+		if(v.depth == 0)
+			continue;
+		v.mark = true;
+		if(v.depth < state.depth)
+			conflicts.push(reason[i]);
+		else
+			count++;
+	}
+	var tlevel = state.trail.length - 1; // Collect conflicts
+	var literal;
+	while(true) {
+		if(tlevel < 0)
+			return null;
+		literal = state.trail[tlevel--];
+		var v = getVariable(state, literal);
+		v.set = false;
+		if(!v.mark) continue;
+		v.mark = false;
+		count--;
+		if(count <= 0) break;
+		for (var i = 1; i < v.reason.length; i++) {
+			literal = v.reason[i];
+			var w = getVariable(state, literal);
+			if(w.mark || w.depth == 0) continue;
+			if(w.depth < state.depth) {
+				conflicts.push(literal);
+			} else count++;
+			w.mark = true;
+		}
+	}
+
+	// Simplify the conflicts
+	var noGoodLearning = [-literal];
+	var blevel = 0;
+	for (var i = 0; i < conflicts.length; i++) {
+		literal = conflicts[i];
+		v = getVariable(state, literal);
+		if(v.reason != null) {
+			var k;
+			for (k = 1; k < v.reason.length && getMark(state, v.reason[k]); k++);
+			if(k >= v.reason.length) continue;
+		}
+		noGoodLearning.push(literal);
+		if(blevel < v.depth) {
+			blevel = v.depth;
+			noGoodLearning[noGoodLearning.length - 1] = noGoodLearning[1];
+			noGoodLearning[1] = literal;
+		}
+	}
+
+	while(tlevel >= 0) { // Unwind the trial
+		literal = state.trail[tlevel];
+		v = getVariable(state, literal);
+		if(v.depth <= blevel) break;
+		v.set = false;
+		tlevel--;
+	}
+	state.trail.length = tlevel + 1;
+
+	for (var i = 0; i < conflicts.length; i++) { // Clear the marks
+		v = getVariable(state, conflicts[i]);
+		v.mark = false;
+	}
+
+	addClause(state, noGoodLearning); // Add no-good clause
+	state.depth = blevel;
+	if(state.empty) return null;
+	return noGoodLearning;
+}
+</script>
+</html>
