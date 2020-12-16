@@ -31,4 +31,6 @@ The following instances are preloaded into the application.
 
 ---
 
+The research paper associated with this work can be found [here](LaTeX/Simeon_Wuthier_Final_SAT_Paper.pdf).
+
 The application is hosted at https://simewu.github.io/SAT-solver
