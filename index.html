@@ -41,18 +41,8 @@
 
 	.yellowbtn {
 		float: right;
-		background-color: #FCED8B;
-		color: #000;
-	}
-
-	.bluebtn::disabled {
-		background-color: #5F6387;
+		background-color: #9E975F;
 		color: #FFF;
-	}
-
-	.yellowbtn::disabled {
-		background-color: #B8AC7B;
-		color: #000;
 	}
 
 	.darktxt {
@@ -163,7 +153,7 @@
 			</div>
 		</div>
 		<button class='bluebtn' id='solveBtn' onclick='solve()'>Solve SAT Instance</button>
-		<button class='yellowbtn' id='runBenchmarkBtn' style='margin-right: 10px' onclick='benchmark()'>Run Benchmark</button>
+		<button class='yellowbtn' id='runBenchmarkBtn' style='margin-right:10px;width:120px' onclick='benchmark()'>Run Benchmark</button>
 		<br>
 		<br>
 		<br>
@@ -183,46 +173,59 @@ editorView.setTheme('ace/theme/monokai');
 editorView.session.setUseWrapMode(true);
 </script>
 <script type='text/javascript'>
-var json = null;
+var json = null, numReadOperations, numWriteOperations;
 
 // Modify the benchmark code here for custom sampling functionality
 function benchmark() {
 	document.getElementById('solveBtn').disabled = true;
 	document.getElementById('runBenchmarkBtn').disabled = true;
-	console.log('# Clauses', '# Literals', 'Time (ms)');
+	console.log('# Clauses', '# Literals', 'Time (ms)', 'Variable Read Operations', 'Variable Write Operations');
 	var html = '';
+	var numSATs = 0, numUNSATs = 0;
 	html += '<table>';
 	html += '<tr>';
 	html += '<td># Clauses</td>';
 	html += '<td># Literals</td>';
 	html += '<td>Time (ms)</td>';
+	html += '<td>Variable Read Operations</td>';
+	html += '<td>Variable Write Operations</td>';
 	html += '</tr>';
 	for(var i = 1; i <= 2000; i *= 2) {
 		for(var j = 1; j <= 2000; j *= 2) {
 			numLiterals = i;
 			numClauses = j;
-			var avgTime = 0, samples = 10;
+			var avgTime = 0, avgReads = 0, avgWrites = 0, samples = 10;
 			for(var k = 0; k < samples; k++) {
-				var clauses = genClauses(numLiterals, numClauses);
+				var result, clauses = genClauses(numLiterals, numClauses);
 				var t1 = performance.now();
 				try {
-					solveSAT(clauses);
+					result = solveSAT(clauses);
 				} catch (e) {}
 				var t2 = performance.now();
 				avgTime += t2 - t1;
+				avgReads += numReadOperations;
+				avgWrites += numWriteOperations;
+				if(result[0]) numSATs++;
+				else numUNSATs++;
 			}
 			avgTime /= samples;
-			console.log(numClauses, numLiterals, avgTime);
+			avgReads /= samples;
+			avgWrites /= samples;
+			console.log(numClauses, numLiterals, avgTime, avgReads, avgWrites);
 			html += '<tr>';
 			html += '<td>' + numClauses + '</td>';
 			html += '<td>' + numLiterals + '</td>';
 			html += '<td>' + avgTime + '</td>';
+			html += '<td>' + avgReads + '</td>';
+			html += '<td>' + avgWrites + '</td>';
 			html += '</tr>';
 		}
 	}
 	html += '</table>';
+	html += '<hr>';
+	html += 'The ratio of SAT to UNSAT was ' + numSATs + ' / ' + (numSATs + numUNSATs) + ' = ' + (numSATs / (numSATs + numUNSATs));
 
-	html += '<hr>To customize the benchmark, edit the <b>benchmark()</b> function on line 184.<br><a href="view-source:https://simewu.github.io/SAT-solver" target="_blank">Click here to go to the code</a>'
+	html += '<hr>To customize the benchmark, edit the <b>benchmark()</b> function on line 189.<br><a href="view-source:https://simewu.github.io/SAT-solver" target="_blank">Click here to go to the code</a>'
 	document.getElementById('outputDiv').innerHTML = html;
 	document.getElementById('solveBtn').disabled = false;
 	document.getElementById('runBenchmarkBtn').disabled = false;
@@ -330,7 +333,6 @@ function setJSON() {
 	formatted = '[' + formatted + ']';
 	try {
 		json = JSON.parse(formatted);
-		console.log(json)
 		for(i in json) {
 			if(!Array.isArray(json[i])) throw {message: 'Only numbers are permitted in JSON at line ' + i};
 			for(j in json[i]) {
@@ -370,6 +372,8 @@ function setJSON() {
 }
 
 function solveSAT(clauses) {
+	numReadOperations = 0;
+	numWriteOperations = 0;
 	var size = recursiveAbsMax(clauses); // Number of variables
 	var state = new State();
 	for(var i = 0; i < size; i++) {
@@ -427,6 +431,7 @@ function State() {
 }
 
 function getVariable(state, literal) {
+	numReadOperations++;
 	var index = (literal < 0 ? -literal : literal);
 	return state.variables[index];
 }
@@ -438,6 +443,7 @@ function watchLiteral(state, literal, clause) {
 }
 
 function setLiteral(state, literal, reason) {
+	numWriteOperations++;
 	var v = getVariable(state, literal);
 	v.sign = literal < 0;
 	v.set = true;
