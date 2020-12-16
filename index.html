@@ -196,8 +196,8 @@ function benchmark() {
 	html += '<td># Literals</td>';
 	html += '<td>Time (ms)</td>';
 	html += '</tr>';
-	for(var i = 1; i <= 3000; i *= 2) {
-		for(var j = 1; j <= 3000; j *= 2) {
+	for(var i = 1; i <= 2000; i *= 2) {
+		for(var j = 1; j <= 2000; j *= 2) {
 			numLiterals = i;
 			numClauses = j;
 			var avgTime = 0, samples = 10;
@@ -261,7 +261,7 @@ function solve() {
 				var variables = result[1];
 				for(var i in variables) {
 					if(variables[i] == null) continue;
-					html += `x${i} = ${variables[i].sign ? '1' : '0'}<br>`
+					html += `x${i} = ${!variables[i].sign ? '1' : '0'}<br>`
 				}
 			}
 			document.getElementById('outputDiv').innerHTML = html;
@@ -329,23 +329,40 @@ function setJSON() {
 	formatted = '[' + formatted + ']';
 	try {
 		json = JSON.parse(formatted);
+		console.log(json)
+		for(i in json) {
+			if(!Array.isArray(json[i])) throw {message: 'Only numbers are permitted in JSON at line ' + i};
+			for(j in json[i]) {
+				if(typeof json[i][j] != 'number') {
+					throw {message: 'Only numbers are permitted in JSON at line ' + i};
+				}
+				if(json[i][j] != Math.floor(json[i][j])) {
+					throw {message: 'No decimals are permitted for variables in JSON at line ' + i};
+				}
+			}
+		}
 		editor.getSession().setAnnotations([]);
 	} catch (e) {
-		if(e instanceof SyntaxError) {
-			var match = e.message.match(/(.+) at position ([0-9]+)/);
-			if(match && match.length == 3) {
-				var message = match[1].split(/( .)? in JSON/)[0];
-				var before = formatted.substring(0, Number(match[2]));
-				var line = before.split('\n').length - 1;
-				editor.getSession().setAnnotations([{
-					row: line,
-					column: 0,
-					text: message,
-					type: 'error'
-				}]);
+		var match = e.message.match(/(.+) at (position|line) ([0-9]+)/);
+		console.log(e.message, match)
+		if(match && match.length == 4) {
+			var line, message = match[1].split(/( .)? in JSON/)[0];
+			console.log(match[2])
+			if(match[2] == 'position') {
+				var before = formatted.substring(0, Number(match[3]));
+				line = before.split('\n').length - 1;
 			} else {
-				editor.getSession().setAnnotations([]);
+				line = Number(match[3]);
 			}
+			console.log(line, 'line')
+			editor.getSession().setAnnotations([{
+				row: line,
+				column: 0,
+				text: message,
+				type: 'error'
+			}]);
+		} else {
+			editor.getSession().setAnnotations([]);
 		}
 		json = null;
 	}
@@ -408,43 +425,26 @@ function State() {
 	this.tlevel = 0;
 }
 
-function getIndex(literal) {
-	return (literal < 0 ? -literal : literal);
-}
-
-function getSign(literal) {
-	return (literal < 0);
-}
-
 function getVariable(state, literal) {
-	var index = getIndex(literal);
+	var index = (literal < 0 ? -literal : literal);
 	return state.variables[index];
-}
-
-function isFalse(state, literal) {
-	var v = getVariable(state, literal);
-	return (v.set && v.sign != getSign(literal));
-}
-
-function getMark(state, literal) {
-	var v = getVariable(state, literal);
-	return v.mark;
 }
 
 function watchLiteral(state, literal, clause) {
 	var v = getVariable(state, literal);
-	var watch = v.twowatched[Number(getSign(literal))];
+	var watch = v.twowatched[Number(literal < 0)];
 	watch.push(clause);
 }
 
 function setLiteral(state, literal, reason) {
 	var v = getVariable(state, literal);
-	v.sign = getSign(literal);
+	v.sign = literal < 0;
 	v.set = true;
 	v.depth = state.depth;
 	v.reason = reason;
 	state.trail.push(literal);
 }
+
 // Add new clause
 function addClause(state, clause) {
 	if(clause.length == 0) { // No literals
@@ -452,7 +452,7 @@ function addClause(state, clause) {
 		return;
 	} else if(clause.length == 1) {
 		var v = getVariable(state, clause[0]);
-		var sign = getSign(clause[0]);
+		var sign = clause[0] < 0;
 		if(v.unit) {
 			if(sign != v.unitSign) state.empty = true;
 			return;
@@ -466,12 +466,14 @@ function addClause(state, clause) {
 }
 // Select random literal
 function pickLiteral(state) {
-	var M = 1, N = state.variables.length - 1;
-	var i = Math.floor(M + (1 + N - M) * Math.random()), j = i;
+	var M = 1,
+		N = state.variables.length - 1;
+	var i = Math.floor(M + (1 + N - M) * Math.random()),
+		_i = i;
 	while(state.variables[i].set) {
 		i++;
-		if(i >= state.variables.length) i = 1;
-		if(i == j) return 0;
+		if(i >= state.variables.length) i = 1; // Reset value
+		if(i == _i) return 0; // Stop if no changes could be applied
 	}
 	var literal = (Math.random() < 0.5 ? -i : i);
 	return literal;
@@ -490,16 +492,19 @@ function unitPropagate(state, literal, reason) {
 			cursor++;
 			literal = -literal;
 			var v = getVariable(state, literal);
-			var watch = v.twowatched[Number(getSign(literal))];
+			var watch = v.twowatched[Number(literal < 0)];
 			for(var i = 0; i < watch.length; i++) {
 				var clause = watch[i];
 				var watchIndex = Number(clause[0] == literal);
 				var literalToWatch = clause[watchIndex];
-				var watchSign = getSign(literalToWatch);
+				var watchSign = literalToWatch < 0;
 				var w = getVariable(state, literalToWatch);
 				if(w.set && w.sign == watchSign) continue; // Clause is true, already done
 				// Search for a true literal in clause
-				var j;
+				var j, isFalse = (state, literal) => {
+					var v = getVariable(state, literal);
+					return (v.set && v.sign != (literal < 0));
+				}
 				for(j = 2; j < clause.length && isFalse(state, clause[j]); j++);
 				if(j >= clause.length) {
 					if(!w.set) { // All other literals a false, use the other watch
@@ -519,10 +524,10 @@ function unitPropagate(state, literal, reason) {
 					break;
 				}
 				// Watch the other literal
-				var new_lit = clause[j];
-				clause[Number(!watchIndex)] = new_lit;
+				var newLiteral = clause[j];
+				clause[Number(!watchIndex)] = newLiteral;
 				clause[j] = literal;
-				watchLiteral(state, new_lit, clause);
+				watchLiteral(state, newLiteral, clause);
 				if(i == watch.length - 1) {
 					watch.pop();
 				} else {
@@ -564,7 +569,9 @@ function satBacktrack(state, reason) {
 			if(w.mark || w.depth == 0) continue;
 			if(w.depth < state.depth) {
 				conflicts.push(literal);
-			} else count++;
+			} else {
+				count++;
+			}
 			w.mark = true;
 		}
 	}
@@ -575,8 +582,13 @@ function satBacktrack(state, reason) {
 		literal = conflicts[i];
 		v = getVariable(state, literal);
 		if(v.reason != null) {
-			var k;
-			for(k = 1; k < v.reason.length && getMark(state, v.reason[k]); k++);
+			var k, getMark = (state, literal) => {
+				var v = getVariable(state, literal);
+				return v.mark;
+			}
+			for(k = 1; k < v.reason.length; k++) {
+				if(!getMark(state, v.reason[k])) break;
+			}
 			if(k >= v.reason.length) continue;
 		}
 		noGoodLearning.push(literal);
