@@ -5,8 +5,8 @@
 ![](/screenshots/1.png)
 
 ## Instructions
-Each number represents an index of the variables (i.e. x_1, ..., x_n). A variable can be either true or false (1 or 0). Negative number mean the NOT operator is used. Combined these are referred to as literals.
-Each line is a clause, which joins the literals by a logical OR. The clauses are joined by a logical AND.
+Each number represents an index of the variables (i.e. x_1, ..., x_n). A variable can be either true or false (1 or 0, respectively). Negative numbers mean that the NOT operator is used. Combining negative and positive variables are referred to as literals.
+Each line is a clause, which joins all the literals by a logical OR. The clauses are all joined by a logical AND.
 The goal is to find whether or not some arrangement of the variables will evaluate the expression to true (satisfiable or SAT) or false (unsatisfiable or UNSAT).
 
 The box on the left is the editor. The box on the right is the view of the instance in mathematical terms. The box on the bottom is the output, which contains the output from whatever experiment was ran. The benchmark button varies the number of literals and clauses, generating random instances, and measuring the time duration of each sample. Ten samples are taken per arrangement.
